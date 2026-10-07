@@ -1,6 +1,8 @@
 package com.finlyticsltd.finlytics.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -72,5 +74,27 @@ public class TransactionService {
 	
 	public List<Transaction> addTransactions(List<Transaction> transactions) {
 	    return transactionRepository.saveAll(transactions);
+	}
+	
+	public SummaryResponse getMonthlySummary(int year, int month) {
+	    if (month < 1 || month > 12) {
+	        throw new IllegalArgumentException("Month must be between 1 and 12");
+	    }
+
+	    YearMonth yearMonth = YearMonth.of(year, month);
+	    LocalDate start = yearMonth.atDay(1);
+	    LocalDate end = yearMonth.atEndOfMonth();
+
+	    BigDecimal income = transactionRepository.sumByTypeAndDateBetween(TransactionType.INCOME, start, end);
+	    BigDecimal expense = transactionRepository.sumByTypeAndDateBetween(TransactionType.EXPENSE, start, end);
+
+	    if (income == null) {
+	        income = BigDecimal.ZERO;
+	    }
+	    if (expense == null) {
+	        expense = BigDecimal.ZERO;
+	    }
+
+	    return new SummaryResponse(income, expense, income.subtract(expense));
 	}
 }

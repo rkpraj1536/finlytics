@@ -75,4 +75,10 @@ public class TransactionController {
 	public List<Transaction> addTransactions(@Valid @RequestBody List<Transaction> transactions) {
 	    return transactionService.addTransactions(transactions);
 	}
+	
+	
+	@GetMapping("/summary/monthly")
+	public SummaryResponse getMonthlySummary(@RequestParam int year, @RequestParam int month) {
+	    return transactionService.getMonthlySummary(year, month);
+	}
 }

@@ -31,7 +31,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     	List<CategoryTotal> totalsByCategory(@Param("type") TransactionType type);
 
 
-
+    @Query("SELECT SUM(t.amount) FROM Transaction t "
+    	     + "WHERE t.type = :type AND t.transactionDate BETWEEN :start AND :end")
+    	BigDecimal sumByTypeAndDateBetween(@Param("type") TransactionType type,
+    	                                   @Param("start") LocalDate start,
+    	                                   @Param("end") LocalDate end);
 }
 
 
