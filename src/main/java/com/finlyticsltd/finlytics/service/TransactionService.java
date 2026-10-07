@@ -69,4 +69,8 @@ public class TransactionService {
 	public List<CategoryTotal> getTotalsByCategory(TransactionType type) {
 		return transactionRepository.totalsByCategory(type);
 	}
+	
+	public List<Transaction> addTransactions(List<Transaction> transactions) {
+	    return transactionRepository.saveAll(transactions);
+	}
 }

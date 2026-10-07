@@ -69,4 +69,10 @@ public class TransactionController {
 	        @RequestParam(defaultValue = "EXPENSE") TransactionType type) {
 	    return transactionService.getTotalsByCategory(type);
 	}
+	
+	@PostMapping("/bulk")
+	@ResponseStatus(HttpStatus.CREATED)
+	public List<Transaction> addTransactions(@Valid @RequestBody List<Transaction> transactions) {
+	    return transactionService.addTransactions(transactions);
+	}
 }
