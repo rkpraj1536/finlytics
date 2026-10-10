@@ -11,90 +11,87 @@ import com.finlyticsltd.finlytics.dto.CategoryTotal;
 import com.finlyticsltd.finlytics.dto.SummaryResponse;
 import com.finlyticsltd.finlytics.entity.Transaction;
 import com.finlyticsltd.finlytics.entity.TransactionType;
+import com.finlyticsltd.finlytics.entity.User;
 import com.finlyticsltd.finlytics.exception.ResourceNotFoundException;
 import com.finlyticsltd.finlytics.repository.TransactionRepository;
+import com.finlyticsltd.finlytics.repository.UserRepository;
 
 @Service
 public class TransactionService {
 
-	private final TransactionRepository transactionRepository;
+    private final TransactionRepository transactionRepository;
+    private final UserRepository userRepository;
 
-	public TransactionService(TransactionRepository transactionRepository) {
-		this.transactionRepository = transactionRepository;
-	}
+    public TransactionService(TransactionRepository transactionRepository, UserRepository userRepository) {
+        this.transactionRepository = transactionRepository;
+        this.userRepository = userRepository;
+    }
 
-	public Transaction addTransaction(Transaction transaction) {
-		return transactionRepository.save(transaction);
-	}
+    public Transaction addTransaction(Transaction transaction, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+        transaction.setId(null);
+        transaction.setUser(user);
+        return transactionRepository.save(transaction);
+    }
 
-	public List<Transaction> getAllTransactions() {
-		return transactionRepository.findAll();
-	}
+    public List<Transaction> getAllTransactions(String username) {
+        return transactionRepository.findByUserUsername(username);
+    }
 
-	public Transaction getTransactionById(Long id) {
-		return transactionRepository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id " + id));
-	}
+    public Transaction getTransactionById(Long id, String username) {
+        return transactionRepository.findByIdAndUserUsername(id, username)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id " + id));
+    }
 
-	public Transaction updateTransaction(Long id, Transaction updated) {
-		Transaction existing = getTransactionById(id);
+    public Transaction updateTransaction(Long id, Transaction updated, String username) {
+        Transaction existing = getTransactionById(id, username);
 
-		existing.setAmount(updated.getAmount());
-		existing.setType(updated.getType());
-		existing.setCategory(updated.getCategory());
-		existing.setDescription(updated.getDescription());
-		existing.setTransactionDate(updated.getTransactionDate());
+        existing.setAmount(updated.getAmount());
+        existing.setType(updated.getType());
+        existing.setCategory(updated.getCategory());
+        existing.setDescription(updated.getDescription());
+        existing.setTransactionDate(updated.getTransactionDate());
 
-		return transactionRepository.save(existing);
-	}
+        return transactionRepository.save(existing);
+    }
 
-	public void deleteTransaction(Long id) {
-		Transaction existing = getTransactionById(id);
-		transactionRepository.delete(existing);
-	}
+    public void deleteTransaction(Long id, String username) {
+        Transaction existing = getTransactionById(id, username);
+        transactionRepository.delete(existing);
+    }
 
-	public SummaryResponse getSummary() {
-		BigDecimal income = transactionRepository.sumByType(TransactionType.INCOME);
-		BigDecimal expense = transactionRepository.sumByType(TransactionType.EXPENSE);
+ // ---- Summaries (scoped to the logged-in user) ----
 
-		if (income == null) {
-			income = BigDecimal.ZERO;
-		}
-		if (expense == null) {
-			expense = BigDecimal.ZERO;
-		}
+    public SummaryResponse getSummary(String username) {
+        BigDecimal income = orZero(transactionRepository.sumByTypeAndUser(TransactionType.INCOME, username));
+        BigDecimal expense = orZero(transactionRepository.sumByTypeAndUser(TransactionType.EXPENSE, username));
 
-		return new SummaryResponse(income, expense, income.subtract(expense));
-		
-	}
+        return new SummaryResponse(income, expense, income.subtract(expense));
+    }
 
-	public List<CategoryTotal> getTotalsByCategory(TransactionType type) {
-		return transactionRepository.totalsByCategory(type);
-	}
-	
-	public List<Transaction> addTransactions(List<Transaction> transactions) {
-	    return transactionRepository.saveAll(transactions);
-	}
-	
-	public SummaryResponse getMonthlySummary(int year, int month) {
-	    if (month < 1 || month > 12) {
-	        throw new IllegalArgumentException("Month must be between 1 and 12");
-	    }
+    public List<CategoryTotal> getTotalsByCategory(TransactionType type, String username) {
+        return transactionRepository.totalsByCategoryAndUser(type, username);
+    }
 
-	    YearMonth yearMonth = YearMonth.of(year, month);
-	    LocalDate start = yearMonth.atDay(1);
-	    LocalDate end = yearMonth.atEndOfMonth();
+    public SummaryResponse getMonthlySummary(int year, int month, String username) {
+        if (month < 1 || month > 12) {
+            throw new IllegalArgumentException("Month must be between 1 and 12");
+        }
 
-	    BigDecimal income = transactionRepository.sumByTypeAndDateBetween(TransactionType.INCOME, start, end);
-	    BigDecimal expense = transactionRepository.sumByTypeAndDateBetween(TransactionType.EXPENSE, start, end);
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate start = yearMonth.atDay(1);
+        LocalDate end = yearMonth.atEndOfMonth();
 
-	    if (income == null) {
-	        income = BigDecimal.ZERO;
-	    }
-	    if (expense == null) {
-	        expense = BigDecimal.ZERO;
-	    }
+        BigDecimal income = orZero(transactionRepository
+                .sumByTypeAndUserAndDateBetween(TransactionType.INCOME, username, start, end));
+        BigDecimal expense = orZero(transactionRepository
+                .sumByTypeAndUserAndDateBetween(TransactionType.EXPENSE, username, start, end));
 
-	    return new SummaryResponse(income, expense, income.subtract(expense));
-	}
+        return new SummaryResponse(income, expense, income.subtract(expense));
+    }
+
+    private BigDecimal orZero(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
 }
