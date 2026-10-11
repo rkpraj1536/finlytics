@@ -54,7 +54,7 @@ Request flow: **Filter (checks token) → Controller → Service → Repository 
 1. Clone the repository:
 
 ```bash
-   git clone https://github.com/<your-username>/finlytics.git
+   git clone https://github.com/rkpraj1536/finlytics.git
    cd finlytics
 ```
 
