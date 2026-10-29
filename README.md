@@ -1,45 +1,72 @@
 # Finlytics
 
-Finlytics is a personal finance tracker REST API built with Spring Boot. Users register, log in, and record their own income and expenses, then see where their money goes through totals, category breakdowns and monthly summaries. Every user can only see and change their own data. I built it to practice layered backend design, JWT authentication, validation and clean error handling.
+Finlytics is a personal finance tracker with a Spring Boot REST API and a dark glassmorphism web interface. You record income and expenses, import them from a CSV file, then see where your money goes through charts, budgets, spending insights and downloadable PDF reports. It works in INR, USD and EUR using daily exchange rates.
+
+I built it as a portfolio project to practice layered backend design, JWT security, validation, testing, and connecting a plain JavaScript frontend to a real API.
+
+## Screenshots
+
+| Dashboard | Transactions |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Transactions](docs/screenshots/transactions.png) |
+
+| Analytics and budgets | Insights |
+|---|---|
+| ![Analytics](docs/screenshots/analytics.png) | ![Insights](docs/screenshots/insights.png) |
 
 ## Features
 
-- User registration and login with JWT (Bearer token) authentication
-- Passwords stored as BCrypt hashes, never as plain text
-- Per-user data isolation: each user can only access their own transactions
-- Add, view, update and delete income and expense transactions
-- Input validation with clear, field-level error messages
-- Global exception handling that returns consistent JSON errors
-- Overall summary: total income, total expense and balance
-- Spending breakdown by category (largest first)
-- Monthly summary for any year and month
-- Automated tests that run without MySQL or any local setup (in-memory H2)
+**Accounts**
+- Sign up with first name, last name, email, an auto-suggested unique username and a strong password (live rule checker)
+- Sign in with email or username, or continue with Google
+- JWT authentication, passwords hashed with BCrypt, change password from Settings
+
+**Money tracking**
+- Add, edit and delete income and expense transactions
+- Search by type, category and date range, with pagination and category suggestions
+- Import many transactions at once from a CSV file, with per-row error messages and duplicate protection
+- Dashboard cards: balance, income, expenses and savings rate
+- Charts: six-month income vs expenses and expenses by category
+
+**Analytics and insights**
+- 12-month income vs expense chart and a month-vs-month category comparison
+- Monthly category budgets with progress bars (amber near the limit, red when over)
+- Unusual spending alerts, recurring payment detection and a next-month forecast
+
+**Reports and currency**
+- Monthly PDF report generated on the server
+- Currency switcher (INR, USD, EUR) using daily exchange rates, cached on the server
 
 ## Tech Stack
 
-- Java 17+
-- Spring Boot 4 (Spring Web, Spring Data JPA, Spring Security, Validation)
-- MySQL (application) and H2 in-memory database (tests only)
-- Hibernate (JPA)
-- JWT with the jjwt library
-- JUnit 5, Mockito and AssertJ
-- Maven
-- Tested manually with Postman
+- **Backend:** Java 17, Spring Boot 4.1.1 (Web MVC, Data JPA, Security, Validation), Hibernate, MySQL 8
+- **Security:** Spring Security, JWT (jjwt), BCrypt, Google Identity Services
+- **Reports:** OpenPDF
+- **Frontend:** plain HTML, CSS and JavaScript, Chart.js (no framework)
+- **Testing:** JUnit 5, Mockito, AssertJ
+- **Tools:** Maven, Eclipse, Postman, Git
 
-## Project Structure
+## Architecture
+
+Request flow: **Controller → Service → Repository → MySQL**, and the response travels back the same way.
 
 ```
 com.finlyticsltd.finlytics
-├── config        # Security configuration and the JWT authentication filter
-├── controller    # REST endpoints, handle HTTP requests and responses
-├── service       # Business logic (summaries, ownership checks, JWT creation)
-├── repository    # Database access via Spring Data JPA
-├── entity        # JPA entities (User, Transaction, TransactionType)
-├── dto           # Request and response objects (login, summaries)
+├── config        # Security setup, JWT filter
+├── controller    # REST endpoints
+├── service       # Business logic (auth, insights, import, reports, rates, budgets)
+├── repository    # Spring Data JPA repositories
+├── entity        # JPA entities (User, Transaction, Budget)
+├── dto           # Request and response records
 └── exception     # Custom exceptions and global error handler
+
+src/main/resources/static
+├── *.html        # login, register, dashboard, transactions, analytics, insights, reports, settings
+├── css/          # design tokens, layout, components
+└── js/           # API wrapper, page scripts, shared layout
 ```
 
-Request flow: **Filter (checks token) → Controller → Service → Repository → MySQL**, and the response travels back the same way.
+The frontend is served by Spring Boot from the `static` folder, and every data request goes through one `apiFetch` function that attaches the JWT.
 
 ## Getting Started
 
@@ -54,55 +81,62 @@ Request flow: **Filter (checks token) → Controller → Service → Repository 
 1. Clone the repository:
 
 ```bash
-   git clone https://github.com/rkpraj1536/finlytics.git
-   cd finlytics
+git clone https://github.com/rkpraj1536/finlytics.git
+cd finlytics
 ```
 
-2. Create the database:
+2. Create the database (tables are created automatically on first run):
 
 ```sql
-   CREATE DATABASE finlytics_db;
+CREATE DATABASE finlytics_db;
 ```
 
-   Tables are created automatically by Hibernate on first run.
+3. Set the environment variables:
 
-3. Set these environment variables:
+| Variable | Description | Required |
+|---|---|---|
+| `DB_USERNAME` | MySQL username | yes |
+| `DB_PASSWORD` | MySQL password | yes |
+| `JWT_SECRET` | Long random string (32+ characters) used to sign tokens | yes |
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID, only for Google sign-in | no |
 
-   | Variable | Description | Default |
-   |---|---|---|
-   | `DB_USERNAME` | MySQL username | `root` |
-   | `DB_PASSWORD` | MySQL password | none (required) |
-   | `JWT_SECRET` | Secret used to sign tokens, at least 32 characters | none (required) |
-
-   Generate a random secret with:
+Windows (Command Prompt):
 
 ```bash
-   openssl rand -base64 48
+set DB_USERNAME=root
+set DB_PASSWORD=your_password
+set JWT_SECRET=replace_with_a_long_random_string_of_32_or_more_characters
 ```
 
-   On Windows (Command Prompt):
+Linux/macOS:
 
 ```bash
-   set DB_PASSWORD=your_password
-   set JWT_SECRET=your_long_random_secret
+export DB_USERNAME=root
+export DB_PASSWORD=your_password
+export JWT_SECRET=replace_with_a_long_random_string_of_32_or_more_characters
 ```
 
-   On Linux/macOS:
-
-```bash
-   export DB_PASSWORD=your_password
-   export JWT_SECRET=your_long_random_secret
-```
-
-   In Eclipse: *Run → Run Configurations → Environment tab → New*.
+In Eclipse: *Run → Run Configurations → Environment tab → New*.
 
 4. Run the application:
 
 ```bash
-   ./mvnw spring-boot:run
+./mvnw spring-boot:run
 ```
 
-   Or run `FinlyticsApplication` from your IDE. The API starts at `http://localhost:8080`.
+Or run `FinlyticsApplication` from your IDE, then open `http://localhost:8080/login.html`.
+
+### Try it with demo data
+
+Register an account, open **Transactions → Import CSV**, and upload `docs/demo-transactions.csv`. The dashboard, charts, budgets and Insights fill up with six months of sample data.
+
+### Optional: Google sign-in
+
+1. In the Google Cloud Console, create an OAuth client of type **Web application** and add `http://localhost:8080` under **Authorized JavaScript origins**.
+2. Set the `GOOGLE_CLIENT_ID` environment variable.
+3. Put the same Client ID in `src/main/resources/static/js/config.js`.
+
+Without these steps the app works normally and only the Google button is disabled.
 
 ### Run the tests
 
@@ -110,134 +144,16 @@ Request flow: **Filter (checks token) → Controller → Service → Repository 
 ./mvnw test
 ```
 
-Tests use an in-memory H2 database and a test-only secret, so they need no MySQL and no environment variables.
+On Windows use `mvnw.cmd test`. The service tests use Mockito, so they run in seconds without a database.
 
-## Authentication
+## CSV Import Format
 
-Only `/api/auth/**` is open. Every other endpoint needs a token.
+The first row must be a header. Columns can be in any order:
 
-1. **Register** an account:
-
-```bash
-   curl -X POST http://localhost:8080/api/auth/register \
-     -H "Content-Type: application/json" \
-     -d '{"username": "rahul", "password": "MyPass@123"}'
-```
-
-2. **Log in** to get a token:
-
-```bash
-   curl -X POST http://localhost:8080/api/auth/login \
-     -H "Content-Type: application/json" \
-     -d '{"username": "rahul", "password": "MyPass@123"}'
-```
-
-   Response:
-
-```json
-   {
-     "token": "eyJhbGciOiJIUzM4NCJ9...",
-     "tokenType": "Bearer"
-   }
-```
-
-3. **Send the token** on every other request:
-
-```bash
-   curl http://localhost:8080/api/transactions \
-     -H "Authorization: Bearer <your-token>"
-```
-
-Tokens expire after 1 hour. When one expires, log in again.
-
-Rules for new accounts: username 3 to 30 characters, password 8 to 72 characters.
-
-## API Endpoints
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/auth/register` | No | Create an account |
-| POST | `/api/auth/login` | No | Log in and receive a token |
-| POST | `/api/transactions` | Yes | Add a transaction |
-| GET | `/api/transactions` | Yes | List your transactions |
-| GET | `/api/transactions/{id}` | Yes | Get one of your transactions |
-| PUT | `/api/transactions/{id}` | Yes | Update one of your transactions |
-| DELETE | `/api/transactions/{id}` | Yes | Delete one of your transactions |
-| GET | `/api/transactions/summary` | Yes | Your total income, expense and balance |
-| GET | `/api/transactions/summary/by-category?type=EXPENSE` | Yes | Your totals per category (`INCOME` or `EXPENSE`) |
-| GET | `/api/transactions/summary/monthly?year=2026&month=10` | Yes | Your summary for one month |
-
-### Example: add a transaction
-
-`POST /api/transactions`
-
-```json
-{
-  "amount": 450.50,
-  "type": "EXPENSE",
-  "category": "Food",
-  "description": "Weekly groceries",
-  "transactionDate": "2026-10-07"
-}
-```
-
-Response: `201 Created` with the saved transaction including its `id`.
-
-### Example: summary
-
-`GET /api/transactions/summary`
-
-```json
-{
-  "totalIncome": 50000.00,
-  "totalExpense": 2000.50,
-  "balance": 47999.50
-}
-```
-
-### Example errors
-
-Validation failure (`400 Bad Request`):
-
-```json
-{
-  "category": "Category is required"
-}
-```
-
-Wrong login (`401 Unauthorized`):
-
-```json
-{
-  "error": "Invalid username or password"
-}
-```
-
-No or invalid token (`401 Unauthorized`):
-
-```json
-{
-  "error": "Authentication required"
-}
-```
-
-Transaction not found, or it belongs to another user (`404 Not Found`):
-
-```json
-{
-  "error": "Transaction not found with id 999"
-}
-```
-
-Username already registered (`409 Conflict`):
-
-```json
-{
-  "error": "Username already taken: rahul"
-}
-```
-
-## Security Design
-
-- **BCrypt password hashing**: passwords are hashed with a salt before they are stored, so a leaked database does not reveal them.
--
+| Column | Required | Accepted values |
+|---|---|---|
+| `date` | yes | `2026-10-03`, `03/10/2026` or `03-10-2026` (day first) |
+| `category` | yes | any text up to 100 characters |
+| `type` | yes | `INCOME` or `EXPENSE` (also `credit` / `debit`) |
+| `amount` | yes | a number above zero; currency symbols and commas are ignored |
+| `description` | no | any text up to 255
